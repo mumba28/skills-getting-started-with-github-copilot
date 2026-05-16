@@ -25,7 +25,49 @@ document.addEventListener("DOMContentLoaded", () => {
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants">
+            <p><strong>Participants:</strong></p>
+            ${details.participants.length > 0 ? `
+              <ul>
+                ${details.participants.map((participant) => `
+                  <li>
+                    <span class="participant-email">${participant}</span>
+                    <button class="remove-btn" data-activity="${name}" data-email="${participant}" aria-label="Remove ${participant}">
+                      &times;
+                    </button>
+                  </li>
+                `).join("")}
+              </ul>
+            ` : `<p class="no-participants">No participants yet.</p>`}
+          </div>
         `;
+
+          // Listen for remove button clicks within the card
+          activityCard.addEventListener("click", async (e) => {
+            if (!e.target.classList.contains("remove-btn")) return;
+
+            const btn = e.target;
+            const email = btn.getAttribute("data-email");
+            const activityName = btn.getAttribute("data-activity");
+
+            if (!confirm(`Unregister ${email} from ${activityName}?`)) return;
+
+            try {
+              const res = await fetch(`/activities/${encodeURIComponent(activityName)}/signup?email=${encodeURIComponent(email)}`, { method: "DELETE" });
+              const data = await res.json();
+
+              if (res.ok) {
+                // Refresh activities so UI stays in sync
+                fetchActivities();
+              } else {
+                console.error("Failed to remove participant:", data);
+                alert(data.detail || 'Failed to remove participant');
+              }
+            } catch (err) {
+              console.error("Error removing participant:", err);
+              alert('Error removing participant');
+            }
+          });
 
         activitiesList.appendChild(activityCard);
 
@@ -62,6 +104,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Refresh activities so the new participant appears immediately
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
